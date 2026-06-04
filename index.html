@@ -631,7 +631,7 @@
                 <div class="tool-left">
                   <el-button type="primary" :icon="Plus" @click="openDocDialog()">新增</el-button>
                   <el-button :icon="Delete">删除</el-button>
-                  <el-button :icon="Tickets">日志</el-button>
+                  <el-button :icon="Tickets" @click="openLogDialog()">日志</el-button>
                   <el-button :icon="Download">下载</el-button>
                 </div>
                 <span class="status-strip"><i class="dot"></i> 更新时间跟随上传成功刷新</span>
@@ -663,6 +663,7 @@
                     <td style="text-align: center">{{ row.customerVisible ? '是' : '否' }}</td>
                     <td>
                       <el-button link type="primary" @click="openDocDialog(row)">编辑</el-button>
+                      <el-button link type="primary" style="margin-left: 4px" @click="openLogDialog(row.docId)">日志</el-button>
                       <el-button link type="danger" style="margin-left: 4px">删除</el-button>
                     </td>
                   </tr>
@@ -854,6 +855,39 @@
             <el-button type="primary" @click="saveDialog">保存配置</el-button>
           </template>
         </el-dialog>
+
+        <el-dialog v-model="logDialogVisible" width="780px" title="操作日志" destroy-on-close>
+          <div style="margin-bottom: 14px; display: flex; align-items: center; gap: 12px">
+            <span style="color: #596575; font-size: 13px; white-space: nowrap">筛选文档：</span>
+            <el-select v-model="logFilterDocId" placeholder="全部文档" style="width: 260px" clearable @change="onLogFilterChange">
+              <el-option label="全部文档" value=""></el-option>
+              <el-option
+                v-for="row in visibleAdminRows"
+                :key="row.docId"
+                :label="row.fileName"
+                :value="row.docId"
+              ></el-option>
+            </el-select>
+            <span style="color: var(--ans-muted); font-size: 13px; margin-left: auto">共 {{ filteredLogs.length }} 条记录</span>
+          </div>
+          <el-table :data="filteredLogs" border stripe max-height="420" style="width: 100%">
+            <el-table-column prop="fileName" label="文件名称" min-width="160" show-overflow-tooltip></el-table-column>
+            <el-table-column prop="action" label="操作类型" width="100">
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.action === '上传文档' ? 'success' : row.action === '更新文档' ? 'warning' : 'primary'"
+                  size="small"
+                >{{ row.action }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="detail" label="操作详情" min-width="180" show-overflow-tooltip></el-table-column>
+            <el-table-column prop="operator" label="操作人" width="90"></el-table-column>
+            <el-table-column prop="time" label="操作时间" width="160" sortable></el-table-column>
+          </el-table>
+          <template #footer>
+            <el-button @click="logDialogVisible = false">关闭</el-button>
+          </template>
+        </el-dialog>
       </div>
     </div>
 
@@ -863,6 +897,21 @@
     <script>
       const { createApp, computed, nextTick, onMounted, reactive, ref, watch } = Vue;
       const Icons = ElementPlusIconsVue;
+
+      const mockLogs = [
+        { logId: "LOG_001", docId: "DOC_2026_001", fileName: "安速客户跟单操作手册", action: "上传文档", operator: "天帆", time: "2026-05-20 14:32:10", detail: "首次上传 PDF 文档，版本 v1.0" },
+        { logId: "LOG_002", docId: "DOC_2026_001", fileName: "安速客户跟单操作手册", action: "编辑配置", operator: "天帆", time: "2026-05-22 09:15:43", detail: "修改可见权限：新增「操作文员」角色" },
+        { logId: "LOG_003", docId: "DOC_2026_001", fileName: "安速客户跟单操作手册", action: "更新文档", operator: "天帆", time: "2026-06-01 16:08:27", detail: "上传新版 PDF，更新至 v1.1，补充异常处理章节" },
+        { logId: "LOG_004", docId: "DOC_2026_002", fileName: "运单异常跟进规范", action: "上传文档", operator: "周航", time: "2026-05-10 10:20:05", detail: "首次上传 DOCX 文档，版本 v1.0" },
+        { logId: "LOG_005", docId: "DOC_2026_002", fileName: "运单异常跟进规范", action: "更新文档", operator: "周航", time: "2026-05-28 11:44:51", detail: "修订责任分派章节，增加复盘指标说明" },
+        { logId: "LOG_006", docId: "DOC_2026_003", fileName: "来款登记核销指南", action: "上传文档", operator: "李晓", time: "2026-05-08 08:55:30", detail: "首次上传 PDF 文档，版本 v1.0" },
+        { logId: "LOG_007", docId: "DOC_2026_003", fileName: "来款登记核销指南", action: "编辑配置", operator: "李晓", time: "2026-05-15 13:22:18", detail: "设置客户不可见，仅财务主管可访问" },
+        { logId: "LOG_008", docId: "DOC_2026_003", fileName: "来款登记核销指南", action: "更新文档", operator: "李晓", time: "2026-05-25 17:36:02", detail: "更新异常账款处理流程，版本 v1.1" },
+        { logId: "LOG_009", docId: "DOC_2026_004", fileName: "角色权限配置说明", action: "上传文档", operator: "天帆", time: "2026-05-18 15:10:44", detail: "首次上传 PDF 文档，版本 v1.0" },
+        { logId: "LOG_010", docId: "DOC_2026_004", fileName: "角色权限配置说明", action: "更新文档", operator: "天帆", time: "2026-06-01 10:05:33", detail: "补充菜单剪枝逻辑说明，版本 v1.1" },
+        { logId: "LOG_011", docId: "DOC_2026_005", fileName: "经营报表查看指南", action: "上传文档", operator: "王思雨", time: "2026-04-28 09:48:12", detail: "首次上传 PDF 文档，版本 v1.0" },
+        { logId: "LOG_012", docId: "DOC_2026_005", fileName: "经营报表查看指南", action: "编辑配置", operator: "王思雨", time: "2026-05-10 14:30:09", detail: "限定仅系统管理员可见" }
+      ];
 
       const mockResponse = {
         status: "success",
@@ -1043,6 +1092,8 @@
           const docLoading = ref(false);
           const docDialogVisible = ref(false);
           const nameDuplicated = ref(false);
+          const logDialogVisible = ref(false);
+          const logFilterDocId = ref("");
 
           const fixedDepartments = ["业务部", "操作部", "财务部", "客服部", "管理部", "系统配置部", "数据分析部"];
           const roleOptions = [
@@ -1082,6 +1133,11 @@
               }))
             )
           );
+
+          const filteredLogs = computed(() => {
+            if (!logFilterDocId.value) return mockLogs;
+            return mockLogs.filter((log) => log.docId === logFilterDocId.value);
+          });
 
           const visibleModules = computed(() => {
             const roles = currentUserRoles.value;
@@ -1154,6 +1210,15 @@
             if (nameDuplicated.value) return;
             ElementPlus.ElMessage.success("配置已保存，上传成功后更新时间会刷新为当前系统时间");
             docDialogVisible.value = false;
+          }
+
+          function openLogDialog(docId) {
+            logFilterDocId.value = docId || "";
+            logDialogVisible.value = true;
+          }
+
+          function onLogFilterChange() {
+            // filter is already reactive, no-op needed
           }
 
           function toggleModule(moduleId) {
@@ -1241,6 +1306,9 @@
             docLoading,
             docDialogVisible,
             nameDuplicated,
+            logDialogVisible,
+            logFilterDocId,
+            filteredLogs,
             fixedDepartments,
             roleOptions,
             adminFilters,
@@ -1254,6 +1322,8 @@
             openDocDialog,
             validateFileName,
             saveDialog,
+            openLogDialog,
+            onLogFilterChange,
             toggleModule,
             activateDoc,
             setSectionRef,
