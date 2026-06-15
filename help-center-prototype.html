@@ -400,7 +400,7 @@
             <span>用户帮助中心</span>
             <small>按部门剪枝、首次自动激活、异步正文、悬浮大纲</small>
           </div>
-          <span class="status-strip"><i class="dot"></i> 当前角色：{{ currentUserRoles.map(roleLabel).join("、") }}</span>
+          <span class="status-strip"><i class="dot"></i> 最新更新时间：{{ latestUpdateTime }}</span>
         </div>
 
         <div class="hall">
@@ -645,6 +645,20 @@
           { label: "系统管理员", value: "admin" }
         ];
 
+        const latestUpdateTime = computed(() => {
+          let latest = "";
+          for (const module of mockResponse.data) {
+            for (const doc of module.children) {
+              if (doc.updateTime > latest) latest = doc.updateTime;
+            }
+          }
+          if (!latest) return "";
+          const now = new Date();
+          const pad = (n) => String(n).padStart(2, "0");
+          const [y, m, d] = latest.split("-");
+          return `${y}年${m}月${d}日 ${pad(now.getHours())}时${pad(now.getMinutes())}分${pad(now.getSeconds())}秒`;
+        });
+
         const visibleModules = computed(() => {
           const roles = currentUserRoles.value;
           return mockResponse.data
@@ -739,6 +753,7 @@
           openModuleId,
           docLoading,
           roleOptions,
+          latestUpdateTime,
           visibleModules,
           roleLabel,
           toggleModule,
