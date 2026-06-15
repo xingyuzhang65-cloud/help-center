@@ -652,11 +652,7 @@
               if (doc.updateTime > latest) latest = doc.updateTime;
             }
           }
-          if (!latest) return "";
-          const [date, time] = latest.split(" ");
-          const [y, m, d] = date.split("-");
-          const [hh, mm, ss] = (time || "00:00:00").split(":");
-          return `${y}年${m}月${d}日 ${hh}时${mm}分${ss}秒`;
+          return latest;
         });
 
         const visibleModules = computed(() => {
