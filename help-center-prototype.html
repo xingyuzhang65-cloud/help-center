@@ -661,9 +661,11 @@
           return mockResponse.data
             .map(module => ({
               ...module,
-              children: module.children.filter(doc =>
-                doc.visible_roles.some(role => roles.includes(role))
-              )
+              children: module.children
+                .filter(doc =>
+                  doc.visible_roles.some(role => roles.includes(role))
+                )
+                .sort((a, b) => b.updateTime.localeCompare(a.updateTime))
             }))
             .filter(module => module.children.length > 0);
         });
